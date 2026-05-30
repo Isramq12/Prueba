@@ -1,0 +1,6 @@
+{
+  "name": "Nexus Gaming Marketplace",
+  "description": "A premium, conversion-optimized, fully interactive modern e-commerce storefront for AAA video games, accessories, retro classics, and gaming memberships with a gamified loyalty system and analytics admin panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
