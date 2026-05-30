@@ -150,10 +150,160 @@ export default function App() {
     localStorage.setItem('nexus_discussions', JSON.stringify(discussions));
   }, [discussions]);
 
+  // Gateway credentials from Admin Setup panel
+  const [paypalEmail, setPaypalEmail] = useState(() => {
+    return localStorage.getItem('local_nexus_paypal_email') || 'israjets1278@gmail.com';
+  });
+  const [cryptoNetwork, setCryptoNetwork] = useState(() => {
+    return localStorage.getItem('local_nexus_crypto_network') || 'USDT (TRC-20)';
+  });
+  const [cryptoAddress, setCryptoAddress] = useState(() => {
+    return localStorage.getItem('local_nexus_crypto_address') || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('local_nexus_paypal_email', paypalEmail);
+  }, [paypalEmail]);
+
+  useEffect(() => {
+    localStorage.setItem('local_nexus_crypto_network', cryptoNetwork);
+  }, [cryptoNetwork]);
+
+  useEffect(() => {
+    localStorage.setItem('local_nexus_crypto_address', cryptoAddress);
+  }, [cryptoAddress]);
+
+  // cPanel SMTP configuration states
+  const [cpanelDomain, setCpanelDomain] = useState(() => {
+    return localStorage.getItem('local_cpanel_domain') || 'israjets1278.com';
+  });
+  const [cpanelEmail, setCpanelEmail] = useState(() => {
+    return localStorage.getItem('local_cpanel_email') || 'no-reply@israjets1278.com';
+  });
+  const [cpanelSmtpHost, setCpanelSmtpHost] = useState(() => {
+    return localStorage.getItem('local_cpanel_smtp_host') || 'mail.israjets1278.com';
+  });
+  const [cpanelSmtpPort, setCpanelSmtpPort] = useState(() => {
+    return localStorage.getItem('local_cpanel_smtp_port') || '465';
+  });
+
+  // Admin access authorization logic
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    return localStorage.getItem('local_admin_logged_in') === 'true';
+  });
+
+  // Outbound Email logs queue
+  const [outboundEmails, setOutboundEmails] = useState<any[]>(() => {
+    const raw = localStorage.getItem('local_nexus_smtp_logs');
+    if (raw) return JSON.parse(raw);
+    
+    // Default welcome email log for israjets1278@gmail.com to demonstrate integration immediately!
+    return [
+      {
+        id: 'TX-90112',
+        sender: 'no-reply@israjets1278.com',
+        recipient: 'israjets1278@gmail.com',
+        subject: 'Welcome to the Nexus Lobby - Verification & Member Perks Locked',
+        body: `Greetings Alexander Mercer [israjets1278@gmail.com],
+
+Your gamer identity has integrated successfully with our systems pipeline using SMTP secure SSL validation.
+
+MEMBERSHIP ENHANCEMENTS LOCKED:
+ - Your account tier: VIP Premium Multiplier Pass
+ - Core server node: DX-81ef7e47
+ - Registration welcome bonus currency: +500 Loyalty XP Points loaded!
+
+Use the custom promotional coupon "VIPFREE" to achieve solid 15% fee reductions across checkout platforms.
+
+Thank you for selecting Nexus,
+cPanel Outbox Daemon Node`,
+        timestamp: new Date(Date.now() - 3600000).toLocaleString(),
+        gateway: 'mail.israjets1278.com:465'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('local_cpanel_domain', cpanelDomain);
+  }, [cpanelDomain]);
+
+  useEffect(() => {
+    localStorage.setItem('local_cpanel_email', cpanelEmail);
+  }, [cpanelEmail]);
+
+  useEffect(() => {
+    localStorage.setItem('local_cpanel_smtp_host', cpanelSmtpHost);
+  }, [cpanelSmtpHost]);
+
+  useEffect(() => {
+    localStorage.setItem('local_cpanel_smtp_port', cpanelSmtpPort);
+  }, [cpanelSmtpPort]);
+
+  useEffect(() => {
+    localStorage.setItem('local_admin_logged_in', isAdminLoggedIn ? 'true' : 'false');
+  }, [isAdminLoggedIn]);
+
+  useEffect(() => {
+    localStorage.setItem('local_nexus_smtp_logs', JSON.stringify(outboundEmails));
+  }, [outboundEmails]);
+
   // Alert dismiss helper
   const triggerAlert = (message: string, type: 'success' | 'warn' = 'success') => {
     setGlobalAlert({ message, type });
     setTimeout(() => setGlobalAlert(null), 3500);
+  };
+
+  // Transaction SMTP log dispatcher
+  const handleDispatchEmail = (recipient: string, subject: string, body: string) => {
+    const newMailLog = {
+      id: 'TX-' + Math.floor(10000 + Math.random() * 90000),
+      sender: cpanelEmail,
+      recipient: recipient,
+      subject: subject,
+      body: body,
+      timestamp: new Date().toLocaleString(),
+      gateway: `${cpanelSmtpHost}:${cpanelSmtpPort}`
+    };
+
+    setOutboundEmails(prev => [newMailLog, ...prev]);
+
+    // Display beautiful notification bar alert
+    triggerAlert(`SMTP Transmission Fired To: ${recipient}!`, 'success');
+  };
+
+  // Sign Up / Change Gamer Profile trigger
+  const handleSignUpOrSwitch = (name: string, email: string, tier: 'Basic' | 'Premium VIP') => {
+    const freshProfile = {
+      name,
+      email,
+      membership: tier === 'Basic' ? 'Starter Account' : 'Legendary VIP Elite',
+      avatar: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150',
+      loyaltyLevel: tier === 'Basic' ? 'Elite' : 'Legend',
+      loyaltyPoints: tier === 'Basic' ? 350 : 2500,
+      savedAddresses: ['101 Cyber Expressway']
+    };
+
+    setUser(freshProfile);
+    triggerAlert(`Gamer Profile synchronized with ${email}! Initialized ${tier === 'Basic' ? '350' : '2500'} XP.`, 'success');
+
+    // Trigger SMTP Welcome email for the new user!
+    const welcomeSubject = `Welcome to the Nexus Lobby - Verification & Member Perks Locked`;
+    const welcomeBody = `Greetings ${name},
+
+Your player node credential (${email}) is verified. Welcome to our gaming portal.
+
+MEMBERSHIP PASS ACQUIRED:
+ - Assigned Group: ${tier === 'Basic' ? 'Starter Account Pro Node' : 'Legendary VIP Elite Member (Double XP active)'}
+ - Base Loyalty Balance: ${tier === 'Basic' ? '350' : '2500'} XP Loyalty Points
+ - Verification IP: Passed Auth DNS check
+
+Load the level codes at Account Column: "LEGEND25" (25% off) or "NEXUS10" (10% off) inside Checkout Wizard to access physical disc cases and accessories with premium speed shipping.
+
+Cheers,
+System Admin
+Nexus Dispatch Terminal`;
+
+    handleDispatchEmail(email, welcomeSubject, welcomeBody);
   };
 
   // Cart operations
@@ -323,6 +473,47 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#050508] text-gray-100 flex flex-col justify-between" id="nexus-gaming-web-root">
       
+      {/* Global Dual Portal HUD Switchbar */}
+      <div className="bg-[#0b0b13] border-b border-white/5 py-2.5 px-4 shadow-[0_1px_5px_rgba(0,0,0,0.5)]">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] tracking-widest font-bold">
+          <div className="flex items-center space-x-2 text-gray-400 uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse"></span>
+            <span>NEXUS REAL-TIME PORTS : LIVE TRANSIT ACTIVE</span>
+          </div>
+          <div className="flex items-center space-x-1.5 bg-black border border-white/5 rounded-full p-0.5">
+            <button
+              onClick={() => {
+                setCurrentView('store');
+                setCheckoutMode(false);
+                setSelectedProduct(null);
+              }}
+              className={`px-4 py-1.5 rounded-full uppercase transition-all duration-300 text-[10px] font-black tracking-widest cursor-pointer ${
+                currentView !== 'admin'
+                  ? 'bg-gradient-to-r from-brand-cyan/25 to-brand-purple/25 text-brand-cyan border border-brand-cyan/35 shadow-[0_0_8px_rgba(0,240,255,0.15)]'
+                  : 'text-gray-400 hover:text-white border border-transparent'
+              }`}
+            >
+              CUSTOMER / CX PORTAL
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView('admin');
+                setCheckoutMode(false);
+                setSelectedProduct(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`px-4 py-1.5 rounded-full uppercase transition-all duration-300 text-[10px] font-black tracking-widest cursor-pointer ${
+                currentView === 'admin'
+                  ? 'bg-gradient-to-r from-brand-pink/25 to-purple-950/25 text-brand-pink border border-brand-pink/35 shadow-[0_0_8px_rgba(255,0,127,0.15)]'
+                  : 'text-gray-400 hover:text-white border border-transparent'
+              }`}
+            >
+              SYSTEM ADMIN PORTAL
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Dynamic alert banner top of screen */}
       {globalAlert && (
         <div className={`fixed bottom-5 left-5 z-50 p-4 rounded-xl flex items-center space-x-3 text-white shadow-2xl border ${
@@ -385,6 +576,10 @@ export default function App() {
             userEmail={user.email}
             onOrderCompleted={handleOrderCompleted}
             rewardPointsEarned={calculatePointsToEarn}
+            paypalEmail={paypalEmail}
+            cryptoNetwork={cryptoNetwork}
+            cryptoAddress={cryptoAddress}
+            onDispatchEmail={handleDispatchEmail}
           />
         ) : selectedProduct ? (
           <ProductPage
@@ -624,16 +819,114 @@ export default function App() {
                   if (matched) setCouponApplied(matched);
                 }}
                 onAddAddress={(adr) => setUser(prev => ({ ...prev, savedAddresses: [...prev.savedAddresses, adr] }))}
+                onSignUpOrSwitch={handleSignUpOrSwitch}
               />
             )}
 
             {currentView === 'admin' && (
-              <AdminDashboard
-                products={products}
-                onAddProduct={handleAddProductAdmin}
-                onUpdateStock={handleUpdateStockAdmin}
-                onDeleteProduct={handleDeleteProductAdmin}
-              />
+              !isAdminLoggedIn ? (
+                <div className="mx-auto max-w-md px-4 py-16 text-center" id="admin-security-login-gate">
+                  <div className="p-8 rounded-3xl bg-cyber-charcoal border border-[#00f0ff]/30 space-y-6 text-left gaming-grid">
+                    <div className="text-center space-y-2 border-b border-white/5 pb-4">
+                      <div className="inline-flex p-3 rounded-2xl bg-cyan-950/20 text-[#00f0ff] border border-[#00f0ff]/25 mb-2 animate-pulse">
+                        <Lock className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-lg font-black uppercase text-white tracking-widest">Operator Authorization Gate</h3>
+                      <p className="text-[10px] text-gray-400 font-mono">AUTHORIZED GATEWAY SECURITY NODE ACCESS ONLY</p>
+                    </div>
+
+                    <div className="p-3.5 bg-black/60 rounded-2xl border border-white/5 space-y-1 font-mono text-[10.5px]">
+                      <span className="text-[#00f0ff] font-bold block mb-1">🔑 PRE-CONFIGURED ADMIN CREDENTIAL PARAMETERS:</span>
+                      <p>USERNAME: <code className="text-white select-all bg-zinc-900 px-1 py-0.5 rounded">admin@nexusgames.com</code></p>
+                      <p>PASSWORD: <code className="text-white select-all bg-zinc-900 px-1 py-0.5 rounded text-glow">nexus</code></p>
+                    </div>
+
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const target = e.currentTarget;
+                        const userIn = (target.elements.namedItem('adminUser') as HTMLInputElement).value;
+                        const passIn = (target.elements.namedItem('adminPass') as HTMLInputElement).value;
+                        if (userIn === 'admin@nexusgames.com' && passIn === 'nexus') {
+                          setIsAdminLoggedIn(true);
+                          triggerAlert('Authorization verified! Welcome Commander.', 'success');
+                        } else {
+                          triggerAlert('Security override triggered: access denied! Check keyphrase.', 'warn');
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 font-mono">Operator Mail Node</label>
+                        <input
+                          name="adminUser"
+                          type="text"
+                          required
+                          defaultValue="admin@nexusgames.com"
+                          className="w-full text-xs font-mono px-4 py-3 bg-[#0a0a0f] border border-white/10 text-[#00f0ff] rounded-xl focus:outline-none focus:border-brand-cyan"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 font-mono">Security Codephrase</label>
+                        <input
+                          name="adminPass"
+                          type="password"
+                          required
+                          defaultValue="nexus"
+                          className="w-full text-xs font-mono px-4 py-3 bg-[#0a0a0f] border border-white/10 text-[#00f0ff] rounded-xl focus:outline-none focus:border-brand-cyan"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-3 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple hover:from-white hover:to-white text-black font-black uppercase text-[10px] tracking-widest cursor-pointer transition-all active:scale-98 text-center shadow-[0_4px_12px_rgba(0,240,255,0.1)] block mt-2"
+                      >
+                        Authorize & Login
+                      </button>
+                    </form>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAdminLoggedIn(true);
+                        triggerAlert('Operator gate bypassed successfully!', 'success');
+                      }}
+                      className="w-full py-2.5 bg-gray-900 border border-white/5 rounded-full text-[10px] text-gray-400 uppercase font-black tracking-widest hover:text-white transition-all cursor-pointer text-center block"
+                    >
+                      Skip Gate / Autologin
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <AdminDashboard
+                  products={products}
+                  onAddProduct={handleAddProductAdmin}
+                  onUpdateStock={handleUpdateStockAdmin}
+                  onDeleteProduct={handleDeleteProductAdmin}
+                  paypalEmail={paypalEmail}
+                  onUpdatePaypalEmail={setPaypalEmail}
+                  cryptoNetwork={cryptoNetwork}
+                  onUpdateCryptoNetwork={setCryptoNetwork}
+                  cryptoAddress={cryptoAddress}
+                  onUpdateCryptoAddress={setCryptoAddress}
+                  
+                  // cPanel SMTP system integration parameters
+                  outboundEmails={outboundEmails}
+                  onClearEmailLogs={() => {
+                    setOutboundEmails([]);
+                    triggerAlert('Historical SMTP mail logs cleared.', 'success');
+                  }}
+                  cpanelDomain={cpanelDomain}
+                  onUpdateCpanelDomain={setCpanelDomain}
+                  cpanelEmail={cpanelEmail}
+                  onUpdateCpanelEmail={setCpanelEmail}
+                  cpanelSmtpHost={cpanelSmtpHost}
+                  onUpdateCpanelSmtpHost={setCpanelSmtpHost}
+                  cpanelSmtpPort={cpanelSmtpPort}
+                  onUpdateCpanelSmtpPort={setCpanelSmtpPort}
+                />
+              )
             )}
           </>
         )}
@@ -722,13 +1015,6 @@ export default function App() {
 // Wrapper for Customer profiles layout checking
 function UserProfileViewWrapper(props: any) {
   return (
-    <UserAccount
-      user={props.user}
-      orders={props.orders}
-      onUpgradeMembership={props.onUpgradeMembership}
-      onSelectCoupon={props.onSelectCoupon}
-      currentAppliedCouponCode={props.currentAppliedCouponCode}
-      onAddAddress={props.onAddAddress}
-    />
+    <UserAccount {...props} />
   );
 }

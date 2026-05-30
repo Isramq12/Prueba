@@ -10,6 +10,10 @@ interface CheckoutProps {
   userEmail: string;
   onOrderCompleted: (orderObj: any) => void;
   rewardPointsEarned: number;
+  paypalEmail: string;
+  cryptoNetwork: string;
+  cryptoAddress: string;
+  onDispatchEmail?: (recipient: string, subject: string, body: string) => void;
 }
 
 export default function Checkout({
@@ -19,12 +23,23 @@ export default function Checkout({
   onClearCart,
   userEmail,
   onOrderCompleted,
-  rewardPointsEarned
+  rewardPointsEarned,
+  paypalEmail,
+  cryptoNetwork,
+  cryptoAddress,
+  onDispatchEmail
 }: CheckoutProps) {
   // Wizard panels
   const [step, setStep] = useState<'checkout' | 'success'>('checkout');
-  const [paymentOption, setPaymentOption] = useState<'card' | 'paypal' | 'apple'>('card');
+  const [paymentOption, setPaymentOption] = useState<'card' | 'paypal' | 'apple' | 'crypto'>('card');
   const [shippingMode, setShippingMode] = useState<'regular' | 'express'>('regular');
+
+  // Simulation parameters for Paypal / Crypto Gateways
+  const [isPaypalConnected, setIsPaypalConnected] = useState(false);
+  const [paypalConnecting, setPaypalConnecting] = useState(false);
+  const [cryptoTxHash, setCryptoTxHash] = useState('');
+  const [cryptoVerifyState, setCryptoVerifyState] = useState<'idle' | 'verifying' | 'verified'>('idle');
+  const [cryptoVerifyProgress, setCryptoVerifyProgress] = useState(0);
 
   // Input states
   const [emailForm, setEmailForm] = useState(userEmail || 'gamer@nexusm.com');
@@ -48,6 +63,16 @@ export default function Checkout({
   const handleProcessOrder = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (paymentOption === 'paypal' && !isPaypalConnected) {
+      alert(`PayPal Security Guard: Please complete sandbox validation and click "Simulate PayPal Authorization" under the merchant profile ${paypalEmail} before locking order.`);
+      return;
+    }
+
+    if (paymentOption === 'crypto' && cryptoVerifyState !== 'verified') {
+      alert(`Decentralized Mempool Guard: Please trigger Mempool validation and click "Verify Blockchain Ledger Transit" for ${cryptoNetwork} before placing order.`);
+      return;
+    }
+
     // Create a random order reference ID
     const trackingRef = 'NX-' + Math.floor(100000 + Math.random() * 900000);
     const orderObj = {
@@ -68,10 +93,64 @@ export default function Checkout({
       total: grandTotal,
       status: 'Processing' as const,
       trackingNumber: trackingRef,
-      paymentMethod: paymentOption === 'card' ? 'Visa *444' : paymentOption === 'paypal' ? 'PayPal' : 'Apple Pay'
+      paymentMethod: paymentOption === 'card' 
+        ? 'Visa *4444' 
+        : paymentOption === 'paypal' 
+          ? `PayPal (To: ${paypalEmail})` 
+          : paymentOption === 'crypto' 
+            ? `Crypto via ${cryptoNetwork} (To: ${cryptoAddress.substring(0, 8)}...)` 
+            : 'Apple Pay'
     };
 
     setGeneratedOrder(orderObj);
+    onClearCart();
+    
+    // Dispatch automated transactional cPanel email receipt!
+    if (onDispatchEmail) {
+      const itemsPurchased = cartItems.map(item => `${item.product.title} (${item.platformSelected} - ${item.formatSelected}) x${item.quantity}`).join('\n - ');
+      const paymentBrand = paymentOption === 'card' 
+        ? 'Credit Card (Visa *4444)'
+        : paymentOption === 'paypal' 
+          ? `PayPal Secure Profile (${paypalEmail})`
+          : paymentOption === 'crypto' 
+            ? `Decentralized Ledger Ledger (${cryptoNetwork} Address: ${cryptoAddress})`
+            : 'Apple Pay Terminal';
+
+      const emailBody = `Nexus Gaming Marketplace [Order Verified]
+
+Greetings ${nameForm},
+
+We have received your electronic settlement fund. Your game licensing parameters have compiled successfully and registered to node ${orderObj.id}.
+
+INVOICE SUMMARY:
+-----------------------------------------------------------
+Order ID:       ${orderObj.id}
+Date:           ${orderObj.date}
+Payment Channel: ${paymentBrand}
+Tracking Hash:  ${trackingRef}
+
+ITEMS ACQUIRED:
+ - ${itemsPurchased}
+
+SUBTOTAL:       $${subtotal.toFixed(2)}
+DISCOUNT VALUE: -$${discountVal.toFixed(2)}
+SHIPPING VALUE: $${shippingCharge.toFixed(2)}
+GRAND TOTAL:    $${grandTotal.toFixed(2)}
+-----------------------------------------------------------
+
+DIGITAL LICENSE KEYS REGISTERED IN VAULT:
+Your unique system activation keys have initialized in your user profile:
+ - Copy standard game license tickets under your 'Gamer Profile Dashboard' instantly to trace steam/console server restocks.
+
+If physical hardware controllers or collectibles are included, secure cardboard transport containers deploy via standard priority next-day dispatch.
+
+Regards,
+Systems Dispatcher Node
+cPanel SMTP Delivery Engine`;
+
+      onDispatchEmail(emailForm, `Receipt Confirmation: Nexus Order #${orderObj.id}`, emailBody);
+    }
+
     onOrderCompleted(orderObj);
     setStep('success');
   };
@@ -128,6 +207,23 @@ export default function Checkout({
               Total Charge: ${generatedOrder.total}
             </div>
           </div>
+
+          {/* Gateway settlement detail */}
+          {generatedOrder.paymentMethod.includes('PayPal') && (
+            <div className="mt-3 p-3.5 rounded-xl bg-purple-950/20 border border-purple-900/40 text-[10.5px] uppercase font-mono tracking-wider text-purple-300 text-left">
+              ⚡ AUTHORIZED SECURE SANDBOX TRANSACTION DISPATCHED TO MERCHANT EMAIL: <span className="text-white select-all font-bold">{paypalEmail}</span>
+            </div>
+          )}
+          {generatedOrder.paymentMethod.includes('Crypto') && (
+            <div className="mt-3 p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-900/40 text-[10.5px] text-left font-mono tracking-wider text-brand-cyan space-y-1 bg-black/40">
+              <span className="block font-sans text-[9px] text-[#00f0ff] font-bold uppercase tracking-widest">⛓️ DECENTRALIZED MEMPOOL TRANSACTION CONFIRMED ON LEDGERS:</span>
+              <div className="space-y-0.5">
+                <p>BLOCK TRANSIT NETWORK: <span className="text-white font-bold">{cryptoNetwork}</span></p>
+                <p>RECEIVING DESTINATION NODE: <span className="text-white select-all font-bold">{cryptoAddress}</span></p>
+                {cryptoTxHash && <p className="truncate">TRANSIT TxHash ID: <span className="text-white select-all font-bold">{cryptoTxHash}</span></p>}
+              </div>
+            </div>
+          )}
         </div>
 
         <button
@@ -274,44 +370,60 @@ export default function Checkout({
               </div>
             </div>
 
-            {/* Selector methods icons */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Selector methods icons with responsive grid-cols-4 and custom styling */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <button
                 type="button"
                 onClick={() => setPaymentOption('card')}
-                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
-                  paymentOption === 'card' ? 'border-brand-cyan bg-brand-cyan/10 text-white font-bold' : 'border-white/5 text-gray-400 bg-[#15151f]'
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  paymentOption === 'card' ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-white font-bold' : 'border-white/5 text-gray-400 bg-[#15151f]'
                 }`}
               >
-                <CreditCard className="h-5 w-5 text-brand-cyan mb-1.5" />
-                <span className="text-[10px] uppercase font-bold tracking-wider">BANK CARD</span>
+                <CreditCard className="h-5 w-5 text-[#00f0ff] mb-1.5" />
+                <span className="text-[9px] uppercase font-black tracking-widest">BANK CARD</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPaymentOption('paypal')}
-                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
-                  paymentOption === 'paypal' ? 'border-[#BC00FF] bg-[#BC00FF]/10 text-white font-bold' : 'border-white/5 text-gray-400 bg-[#15151f]'
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  paymentOption === 'paypal' ? 'border-[#BC00FF] bg-[#BC00FF]/15 text-white font-bold shadow-[0_0_12px_rgba(188,0,255,0.1)]' : 'border-white/5 text-gray-400 bg-[#15151f]'
                 }`}
               >
-                <Gift className="h-5 w-5 text-[#BC00FF] mb-1.5" />
-                <span className="text-[10px] uppercase font-bold tracking-wider">PAYPAL</span>
+                <div className="h-5 w-5 rounded-full bg-[#BC00FF]/25 flex items-center justify-center mb-1.5 font-bold">
+                  <span className="text-[10px] font-black text-[#BC00FF] font-sans">PP</span>
+                </div>
+                <span className="text-[9px] uppercase font-black tracking-widest">PAYPAL</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOption('crypto')}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  paymentOption === 'crypto' ? 'border-[#00F0FF] bg-[#00F0FF]/15 text-white font-bold shadow-[0_0_12px_rgba(0,240,255,0.1)]' : 'border-white/5 text-gray-400 bg-[#15151f]'
+                }`}
+              >
+                <div className="h-5 w-5 rounded-full bg-[#00F0FF]/25 flex items-center justify-center mb-1.5 animate-pulse">
+                  <span className="text-[10px] font-mono font-black text-[#00F0FF]">₿</span>
+                </div>
+                <span className="text-[9px] uppercase font-black tracking-widest">CRYPTO</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPaymentOption('apple')}
-                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all ${
                   paymentOption === 'apple' ? 'border-brand-pink bg-brand-pink/10 text-white font-bold' : 'border-white/5 text-gray-400 bg-[#15151f]'
                 }`}
               >
                 <Smartphone className="h-5 w-5 text-brand-pink mb-1.5" />
-                <span className="text-[10px] uppercase font-bold tracking-wider">APPLE PAY</span>
+                <span className="text-[9px] uppercase font-black tracking-widest">APPLE PAY</span>
               </button>
             </div>
 
-            {paymentOption === 'card' ? (
-              <div className="space-y-3 pt-3">
+            {/* Custom Payment Inner interfaces */}
+            {paymentOption === 'card' && (
+              <div className="space-y-3 pt-3 text-left">
                 <div>
                   <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5">Credit Card Number</label>
                   <input
@@ -323,7 +435,7 @@ export default function Checkout({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 pb-1">
                   <div>
                     <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5">Exp Date</label>
                     <input
@@ -348,10 +460,165 @@ export default function Checkout({
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-black border border-white/5 text-center py-6">
-                <p className="text-xs text-gray-400">
-                  Clicking "Authorize & Place Order" will mount an external authenticating popup interface to authorize your credentials securely.
+            )}
+
+            {paymentOption === 'paypal' && (
+              <div className="p-5 rounded-2xl bg-[#0b0b13] border border-white/5 text-left space-y-4">
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest block">PAYPAL GATEWAY MAPPED COORD</span>
+                  <p className="text-[11px] text-gray-300">
+                    Settlements flow directly to your store's verified PayPal receiver coordinate:
+                  </p>
+                  <div className="p-2.5 bg-black/60 rounded-xl font-mono text-white text-xs block border border-white/5 sm:flex sm:items-center sm:justify-between select-all">
+                    <span>{paypalEmail}</span>
+                    <span className="text-[9px] font-bold rounded bg-purple-950 text-[#BC00FF] px-1.5 py-0.5 border border-purple-900/40 uppercase tracking-widest mt-1 sm:mt-0 font-sans">
+                      VERIFIED MERCH
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/5">
+                  {paypalConnecting ? (
+                    <div className="flex items-center justify-center space-x-2 py-3 bg-[#15151f] rounded-full border border-white/5 text-xs text-purple-400 uppercase tracking-wider">
+                      <div className="w-4 h-4 rounded-full border-2 border-[#BC00FF] border-t-transparent animate-spin"></div>
+                      <span>Connecting Sandbox Tunnel...</span>
+                    </div>
+                  ) : isPaypalConnected ? (
+                    <div className="space-y-2 text-center text-xs p-3 rounded-xl border border-emerald-950 bg-emerald-950/25 text-emerald-400 font-mono tracking-wide">
+                      <p className="font-bold flex items-center justify-center gap-1.5 uppercase font-sans">
+                        <span>● MOCK PAYPAL ACCOUNT AUTHORIZED</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 uppercase font-sans tracking-wide">
+                        Connected. Ready to execute secure instant settlement of ${grandTotal} USD.
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaypalConnecting(true);
+                        setTimeout(() => {
+                          setPaypalConnecting(false);
+                          setIsPaypalConnected(true);
+                        }, 1200);
+                      }}
+                      className="w-full py-2.5 rounded-full bg-[#BC00FF] hover:bg-white text-black font-black uppercase text-[10px] tracking-widest cursor-pointer transition-all active:scale-98 text-center"
+                    >
+                      Simulate PayPal Authorization
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {paymentOption === 'crypto' && (
+              <div className="p-5 rounded-2xl bg-[#0b0b13] border border-white/5 text-left space-y-4">
+                <div className="space-y-2">
+                  <span className="text-[9px] font-black text-brand-cyan uppercase tracking-widest block">DECENTRALIZED NODE TRANSPORTS</span>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-black/50 p-3 rounded-2xl border border-white/5 font-mono">
+                    <div>
+                      <span className="text-[8.5px] text-gray-500 uppercase block tracking-wider mb-0.5">NETWORKS TARGET:</span>
+                      <span className="text-white font-bold font-sans tracking-wide text-[11px] block">{cryptoNetwork}</span>
+                    </div>
+                    <div>
+                      <span className="text-[8.5px] text-gray-500 uppercase block tracking-wider mb-0.5">RECEIVER HASH:</span>
+                      <span className="text-brand-cyan block truncate select-all text-[11.5px]" title={cryptoAddress}>{cryptoAddress}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-end gap-2 text-xs">
+                    <div className="flex-grow">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block animate-pulse">
+                          Transaction Hash (TxHash)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newHash = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
+                            setCryptoTxHash(newHash);
+                            setCryptoVerifyState('idle');
+                          }}
+                          className="text-[9px] text-brand-cyan uppercase font-bold hover:underline cursor-pointer"
+                        >
+                          Generate demo hash
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={cryptoTxHash}
+                        onChange={(e) => {
+                          setCryptoTxHash(e.target.value);
+                          if(cryptoVerifyState === 'verified') setCryptoVerifyState('idle');
+                        }}
+                        placeholder="e.g. 0xf83d9cbb281...cb9e2"
+                        className="w-full text-xs font-mono px-4 py-2.5 bg-[#15151f] border border-white/10 text-white rounded-full focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {cryptoVerifyState === 'verifying' ? (
+                    <div className="space-y-2 p-3 rounded-xl border border-white/5 bg-black/60 font-mono text-[10px] text-gray-400">
+                      <div className="flex justify-between font-bold uppercase tracking-wide text-[9px] text-[#00f0ff]">
+                        <span>Scanning Meme Pool Node...</span>
+                        <span>{cryptoVerifyProgress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-brand-cyan to-brand-purple transition-all duration-100"
+                          style={{ width: `${cryptoVerifyProgress}%` }}
+                        ></div>
+                      </div>
+                      <p className="animate-pulse text-[9px]">Awaiting confirmations (Block node depth verification active)...</p>
+                    </div>
+                  ) : cryptoVerifyState === 'verified' ? (
+                    <div className="p-3.5 rounded-xl border border-emerald-950 bg-emerald-950/20 text-emerald-400 font-mono text-[10.5px] space-y-1">
+                      <span className="font-bold flex items-center gap-1.5 uppercase font-sans text-xs text-white">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        TRANSACTION CONFIRMED LIVE
+                      </span>
+                      <p className="text-[9.5px] text-gray-400 uppercase font-sans">
+                        Blockchain snapshot verification received. Funds registered in store transit logs safely.
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!cryptoTxHash) {
+                          alert("Please paste a block transaction hash or click 'Generate demo hash' first to trace the ledger!");
+                          return;
+                        }
+                        setCryptoVerifyState('verifying');
+                        setCryptoVerifyProgress(0);
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                          progress += 20;
+                          setCryptoVerifyProgress(progress);
+                          if (progress >= 100) {
+                            clearInterval(interval);
+                            setCryptoVerifyState('verified');
+                          }
+                        }, 250);
+                      }}
+                      className="w-full py-2.5 rounded-full bg-brand-cyan hover:bg-white text-black font-black uppercase text-[10px] tracking-widest cursor-pointer transition-all active:scale-98 text-center"
+                    >
+                      Verify Blockchain Ledger Transit
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {paymentOption === 'apple' && (
+              <div className="p-5 rounded-2xl bg-[#0b0b13] border border-white/5 text-center space-y-3.5">
+                <span className="font-sans font-bold text-xs text-white uppercase tracking-widest block"> Pay Authentication</span>
+                <p className="text-xs text-gray-400 leading-normal max-w-sm mx-auto uppercase tracking-wide text-[10px]">
+                  Double-tap side trigger on Apple devices or face ID scan to instant purchase. Mapped secure token transit is automated on place order.
                 </p>
               </div>
             )}

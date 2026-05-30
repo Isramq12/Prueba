@@ -10,6 +10,7 @@ interface UserAccountProps {
   onSelectCoupon: (couponCode: string) => void;
   currentAppliedCouponCode?: string;
   onAddAddress: (address: string) => void;
+  onSignUpOrSwitch?: (name: string, email: string, membership: 'Basic' | 'Premium VIP') => void;
 }
 
 export default function UserAccount({
@@ -18,10 +19,16 @@ export default function UserAccount({
   onUpgradeMembership,
   onSelectCoupon,
   currentAppliedCouponCode,
-  onAddAddress
+  onAddAddress,
+  onSignUpOrSwitch
 }: UserAccountProps) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [newAddress, setNewAddress] = useState('');
+  
+  // Registration form inputs
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regTier, setRegTier] = useState<'Basic' | 'Premium VIP'>('Basic');
 
   const handleCopy = (code: string) => {
     setCopiedCode(code);
@@ -195,6 +202,88 @@ export default function UserAccount({
                 );
               })}
             </div>
+          </div>
+
+          {/* Interactive Gamer Sign Up / Registry Form */}
+          <div className="p-6 rounded-2xl bg-cyber-charcoal border border-gray-800 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-900 pb-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-white flex items-center">
+                <Shield className="h-4 w-4.5 text-brand-cyan mr-2" />
+                <span>Initialize Gamer Account</span>
+              </h3>
+              <span className="px-2 py-0.5 rounded bg-emerald-950/20 text-[#00f0ff] font-extrabold text-[8px] border border-cyan-900/30 uppercase tracking-widest font-mono">
+                Real-time SMTP
+              </span>
+            </div>
+
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide leading-relaxed">
+              Register a new gamer identity or swap profile. Trigger dynamic automated cPanel welcome notifications.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!regName.trim() || !regEmail.trim()) {
+                  alert("Please enter both gamer display name and valid mail coordinate!");
+                  return;
+                }
+                if (onSignUpOrSwitch) {
+                  onSignUpOrSwitch(regName.trim(), regEmail.trim(), regTier);
+                  setRegName('');
+                  setRegEmail('');
+                }
+              }}
+              className="space-y-3 pt-1 text-left"
+            >
+              <div>
+                <label className="text-[9px] font-extrabold text-gray-500 uppercase tracking-widest block mb-1">
+                  Gamer Handle / Display Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Marcus Fenix"
+                  className="w-full text-xs px-3.5 py-2.5 bg-cyber-black border border-gray-800 text-white rounded-xl focus:outline-none focus:border-brand-cyan uppercase tracking-wider font-mono shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-extrabold text-gray-500 uppercase tracking-widest block mb-1">
+                  Primary Email Coordinate
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="e.g. marcus@cog.com"
+                  className="w-full text-[#00f0ff] text-xs px-3.5 py-2.5 bg-cyber-black border border-gray-800 rounded-xl focus:outline-none focus:border-brand-cyan font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-extrabold text-gray-500 uppercase tracking-widest block mb-1">
+                  Loyalty Member Pass Tier
+                </label>
+                <select
+                  value={regTier}
+                  onChange={(e) => setRegTier(e.target.value as any)}
+                  className="w-full text-xs px-3.5 py-2.5 bg-cyber-black border border-gray-800 text-white rounded-xl focus:outline-none cursor-pointer uppercase font-mono tracking-wider font-bold"
+                >
+                  <option value="Basic">Standard Access Base Tier</option>
+                  <option value="Premium VIP">VIP Premium Multiplier Pass</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-full bg-gradient-to-r from-brand-cyan to-brand-purple hover:from-white hover:to-white text-black font-black uppercase text-[10px] tracking-widest cursor-pointer transition-all active:scale-98 text-center shadow-[0_4px_12px_rgba(0,240,255,0.1)] block mt-2"
+              >
+                Register & Verify Mail
+              </button>
+            </form>
           </div>
 
         </div>
